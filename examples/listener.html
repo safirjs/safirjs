@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:sf="https://github.com/liviathan/safirjs">
+<head>
+    <meta charset="UTF-8">
+    <title>Listener example</title>
+</head>
+<body>
+
+<form id="form-1" action="/index.html" method="post">
+    <p>
+        <input type="text" name="task"/>
+        <button type="submit">add</button>
+    </p>
+</form>
+
+<form id="form-2" action="/index.html" method="post" sf:listener="FormListener">
+    <p>
+        <input type="text" sf:listener="InputChangeListener" name="task"/>
+        <button type="submit">add</button>
+    </p>
+</form>
+
+<p>
+    <input id="input-1" name="test"/>
+</p>
+
+
+<script src="/js/safir.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+    class FormListener extends SafirListener {
+        on_submit(event) {
+            event.preventDefault();
+            console.log('event caught', event);
+        }
+    }
+
+    class InputChangeListener extends SafirListener {
+        on_change(event) {
+            console.log('on_change caught', event);
+        }
+    }
+
+    SafirRegistry.add(InputChangeListener, FormListener);
+
+</script>
+</body>
+</html>

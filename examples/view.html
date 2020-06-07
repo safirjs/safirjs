@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:sf="https://github.com/liviathan/safirjs">
+<head>
+    <meta charset="UTF-8">
+    <title>View example</title>
+</head>
+<body>
+
+<div id="view_1">sdf</div>
+
+<div class="view_2">sdf</div>
+<div class="view_2">sdf</div>
+<div class="view_2">sdf</div>
+<div class="view_2">sdf</div>
+<div class="view_2">sdf</div>
+
+<script src="/js/safir.js" type="text/javascript"></script>
+<script type="text/javascript">
+    let view = new SafirView('#view_1');
+    SafirViewBuilder.setup('.view_2');
+</script>
+</body>
+</html>

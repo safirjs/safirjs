@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:sf="https://github.com/liviathan/safirjs">
+<head>
+    <meta charset="UTF-8">
+    <title>Request example</title>
+</head>
+<body>
+
+<form action="/redirect.php" method="post" sf:response-handler="DocumentLoadHandler">
+    <input type="text" name="task" value="test"/>
+    <button type="submit">add</button>
+</form>
+
+<script src="/js/safir.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+    class DocumentLoadHandler {
+        /**
+         * Handle 2XX request
+         */
+        on_http_success(status, json) {
+            console.log('success', json);
+        }
+
+        /**
+         * Handle 4XX, 5XX
+         */
+        on_http_error(status, json) {
+            console.log('error', status);
+        }
+    }
+    SafirRegistry.add(DocumentLoadHandler);
+
+</script>
+</body>
+</html>

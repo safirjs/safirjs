@@ -1,0 +1,8 @@
+{
+  "name": "lemur",
+  "version": "1.0.0",
+  "dependencies": {
+    "grunt": "^1.1.0",
+    "grunt-contrib-concat": "^1.0.1"
+  }
+}

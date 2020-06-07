@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:sf="https://github.com/liviathan/safirjs">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<div id="result"></div>
+<script src="/js/safir.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+    safir.loaded(() => {
+        let html = '<strong>big</strong>';
+        let data = { firstname: 'liva', html: html, gender: 'male', lastname: 'Ramarolahy'};
+
+        let template = new SafirTemplate('#hello-world');
+        template.render('#result', data);
+    });
+
+</script>
+
+<template id="hello-world">
+    <div>
+        test
+        <h1 class="title" sf:attach-data>my name is {{ firstname }} {{ lastname }}</h1>
+        <p sf:text="html"></p>
+        <p sf:text-escaped="html"></p>
+    </div>
+    <p>I am a {{ gender }}</p>
+    <p><![CDATA[ some fancy data ]]></p>
+</template>
+
+</body>
+
+
+</html>

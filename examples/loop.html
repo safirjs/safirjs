@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:sf="https://github.com/liviathan/safirjs">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div id="result"></div>
+<script src="/js/safir.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+    safir.loaded(() => {
+        let todo = [{id: 1, name: 'Task 1', list : [1, 2, 3]}
+            , {id: 2, name: 'Task 2', list : [4, 5, 6]}
+            , {id: 3, name: 'Task 3', list : [7, 8, 9]}
+        ];
+        let data = { todo: todo};
+
+        let template = new SafirTemplate('#hello-world');
+        template.render('#result', data);
+    });
+
+</script>
+
+<template id="hello-world">
+    <ul class="attr-loop">
+        <li sf:loop="todo" sf:as="task" class="todo-item todo_{{ _index_ }}">
+            {{ task.id }} : <span sf:text="task.name"></span>&nbsp;&nbsp;[{{ _index_ }}]
+            <ul>
+                <li sf:loop="task.list" sf:as="item">
+                    {{ _index_ }} : ID #{{ item }}
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <ul>
+        <sf:loop on="todo" as="task">
+            <li>
+                {{ task.id }} : <span sf:text="task.name"></span>&nbsp;&nbsp;[{{ _index_ }}]
+                <ul>
+                    <li sf:loop="task.list" sf:as="item">
+                        {{ _index_ }} : ID #{{ item }}
+                    </li>
+                </ul>
+            </li>
+        </sf:loop>
+    </ul>
+</template>
+
+</body>
