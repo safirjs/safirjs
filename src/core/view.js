@@ -1,9 +1,9 @@
 /**
- * Handle basic view component
- * @class SafirView
+ * Handle basic element
+ * @class SafirElement
  * @author liva Ramarolahy
  */
-class SafirView extends SafirEventTarget {
+class SafirElement extends SafirEventTarget {
     constructor(selector, options) {
         super(selector, options);
 
@@ -13,7 +13,7 @@ class SafirView extends SafirEventTarget {
 
             this.registerListeners();
         } else {
-            console.error('View element not found', selector);
+            console.error('Element not found', selector);
         }
     }
 
@@ -37,7 +37,7 @@ class SafirView extends SafirEventTarget {
     }
 }
 
-class SafirViewBuilder {
+class SafirElementBuilder {
 
     /**
      *
@@ -49,7 +49,7 @@ class SafirViewBuilder {
         elements.forEach(function (element, index) {
             if (!element.hasAttributeNS(SafirTemplate.namespace, 'view')) {
                 // let view = new LView(element, options);
-                Reflect.construct(SafirView, [element, options]);
+                Reflect.construct(SafirElement, [element, options]);
             }
         });
     }

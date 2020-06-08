@@ -1,4 +1,4 @@
-class BootstrapEditableFormHelper extends SafirView {
+class BootstrapEditableFormHelper extends SafirElement {
     constructor(selector, options) {
         super(selector, options);
         this.addToggleListener();

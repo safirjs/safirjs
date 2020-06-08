@@ -1,4 +1,4 @@
-class SafirForm extends SafirView {
+class SafirForm extends SafirElement {
     constructor(selector, request) {
         super(selector);
         if (request !== undefined) {
