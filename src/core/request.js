@@ -29,6 +29,10 @@ class SafirHttpRequest {
         }
     }
 
+    clearHandlers() {
+        this.response_handlers = [];
+    }
+
     /**
      *
      */

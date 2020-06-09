@@ -14,7 +14,7 @@ module.exports = function (grunt) {
                     'src/core/option.js',
                     'src/core/request.js',
                     'src/core/event_target.js',
-                    'src/core/view.js',
+                    'src/core/element.js',
                     'src/core/form.js',
                     'src/core/data.js',
                     'src/third-party/laravel.js',
