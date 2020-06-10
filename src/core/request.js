@@ -55,18 +55,22 @@ class SafirHttpRequest {
         const method = this.method.toUpperCase();
 
         let url = this.url;
-        if (method === 'GET' && data !== undefined) {
-            let queryString = this.toQueryString(data);
-            if (queryString) {
-                url = url + '?' + queryString;
+        let request_option = {method: method};
+        if(method === 'GET' || method === 'HEAD') {
+            if(data !== undefined) {
+                let queryString = this.toQueryString(data);
+                if (queryString) {
+                    url = url + '?' + queryString;
+                }
             }
+        } else {
+            if(!(data instanceof FormData)) {
+                data = JSON.stringify(data);
+            }
+            request_option['body'] = data;
         }
 
-        if(!(data instanceof FormData)) {
-            data = JSON.stringify(data);
-        }
-
-        const request = new Request(url, {method: method, body: data});
+        const request = new Request(url, request_option);
 
         for(const header in this.headers) {
             request.headers.append(header, this.headers[header]);
@@ -129,6 +133,25 @@ class SafirHttpRequest {
                 request_data.append(key, data[key]);
             }
             return request_data.toQueryString();
+        }
+    }
+}
+
+class SafirSecureHttpRequest extends SafirHttpRequest {
+    constructor(options) {
+        super(options);
+        this.headers['Accept'] = 'application/json';
+        let token_name = document.querySelector('meta[name="secure-token-name"]');
+        let token_value = document.querySelector('meta[name="secure-token"]');
+
+        if(token_value) {
+            let value = token_value.getAttribute('content');
+            if(token_name) {
+                let name = token_name.getAttribute('content');
+                this.headers[name] = value;
+            } else {
+                this.headers['X-CSRF-TOKEN'] = value;
+            }
         }
     }
 }

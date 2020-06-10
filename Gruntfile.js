@@ -17,9 +17,9 @@ module.exports = function (grunt) {
                     'src/core/element.js',
                     'src/core/form.js',
                     'src/core/data.js',
-                    'src/third-party/laravel.js',
                     'src/third-party/bootstrap.js',
                     'src/helpers/*.js',
+                    'src/ui/*.js',
                     'src/core/init.js'],
                 dest: 'build/safir.js',
             }

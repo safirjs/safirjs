@@ -2,7 +2,7 @@
  *
  */
 class SafirDataAttributeProcessor extends SafirBaseProcessor {
-    static _name = 'attach-data';
+    static _name = 'data';
 
     process(node, target, parent_processor) {
         // Delete this to prevent infinite loop

@@ -129,7 +129,7 @@ class SafirTemplateNode {
         let data = this.context.get(name);
         if (data === undefined) {
             if (this.parent === undefined) {
-                console.log('this.parent', name);
+                console.error('this.parent', name);
             }
             data = this.parent.get(name);
         }
@@ -354,12 +354,10 @@ class SafirTemplate {
      * @param data
      */
     render(target, data) {
-
         if (!(target instanceof Element)) {
             target = document.querySelector(target);
         }
         this.node.render(target, data);
-
         safir.init(target);
     }
 }
@@ -407,7 +405,7 @@ class SafirConditionalProcessor extends SafirBaseProcessor {
  *
  */
 class SafirDataAttributeProcessor extends SafirBaseProcessor {
-    static _name = 'attach-data';
+    static _name = 'data';
 
     process(node, target, parent_processor) {
         // Delete this to prevent infinite loop
@@ -735,12 +733,14 @@ class SafirEventListener extends SafirObject {
         } else {
             this.elt = document.querySelector(selector);
         }
-        if (this.elt) {
+        if (this.elt instanceof Element) {
             let prototypes = this.listPrototypes('on_');
             prototypes.forEach(function (p, index) {
                 let name = p.substr(3);
                 this.elt.addEventListener(name, this[p].bind(this));
             }, this);
+        } else {
+            console.error('SafirEventListener', 'Element with selector [' + selector + '] not found');
         }
     }
 }
@@ -863,18 +863,22 @@ class SafirHttpRequest {
         const method = this.method.toUpperCase();
 
         let url = this.url;
-        if (method === 'GET' && data !== undefined) {
-            let queryString = this.toQueryString(data);
-            if (queryString) {
-                url = url + '?' + queryString;
+        let request_option = {method: method};
+        if(method === 'GET' || method === 'HEAD') {
+            if(data !== undefined) {
+                let queryString = this.toQueryString(data);
+                if (queryString) {
+                    url = url + '?' + queryString;
+                }
             }
+        } else {
+            if(!(data instanceof FormData)) {
+                data = JSON.stringify(data);
+            }
+            request_option['body'] = data;
         }
 
-        if(!(data instanceof FormData)) {
-            data = JSON.stringify(data);
-        }
-
-        const request = new Request(url, {method: method, body: data});
+        const request = new Request(url, request_option);
 
         for(const header in this.headers) {
             request.headers.append(header, this.headers[header]);
@@ -937,6 +941,25 @@ class SafirHttpRequest {
                 request_data.append(key, data[key]);
             }
             return request_data.toQueryString();
+        }
+    }
+}
+
+class SafirSecureJSONRequest extends SafirHttpRequest {
+    constructor(options) {
+        super(options);
+        this.headers['Accept'] = 'application/json';
+        let token_name = document.querySelector('meta[name="secure-token-name"]');
+        let token_value = document.querySelector('meta[name="secure-token"]');
+
+        if(token_value) {
+            let value = token_value.getAttribute('content');
+            if(token_name) {
+                let name = token_name.getAttribute('content');
+                this.headers[name] = value;
+            } else {
+                this.headers['X-CSRF-TOKEN'] = value;
+            }
         }
     }
 }
@@ -1142,6 +1165,12 @@ class SafirForm extends SafirElement {
     }
 }
 
+class SafirSecureForm extends SafirForm {
+    constructor(selector) {
+        super(selector, SafirSecureJSONRequest);
+    }
+}
+
 class SafirFormListener extends SafirEventListener {
     on_submit(event) {
         event.preventDefault();
@@ -1238,23 +1267,6 @@ class SafirDomDataRegistry {
         }
     }
 }
-class LaravelRequest extends SafirHttpRequest {
-    constructor(options) {
-        super(options);
-        let header = document.querySelector('meta[name="csrf-token"]');
-        this.headers['Accept'] = 'application/json';
-        if(header) {
-            this.headers['X-CSRF-TOKEN'] = header.getAttribute('content');
-        }
-
-    }
-}
-class LaravelForm extends SafirForm {
-    constructor(selector) {
-        super(selector, LaravelRequest);
-    }
-}
-
 class BootstrapEditableFormHelper extends SafirElement {
     constructor(selector, options) {
         super(selector, options);
@@ -1364,6 +1376,112 @@ class SafirFileUploader {
         }
     }
 }
+/**
+ *
+ */
+class SafirUIAutocomplete extends SafirObject {
+    constructor(options) {
+        super();
+        this.target = options.target;
+        this.template = options.template;
+        this.url = options.url;
+        this.request = options.request ? Reflect.construct(options.request, [])
+            : Reflect.construct(SafirHttpRequest, []);
+        this.request.registerResponseHandler(this);
+        this.request.prepare('get', this.url);
+        this.data_queue = [];
+        this.request_pending = false;
+        this.initSuggestionContainer();
+        this.target.setAttribute('autocomplete', 'off');
+    }
+
+    /**
+     *
+     * @param data
+     */
+    query(data) {
+        this.data_queue.push(data);
+        if (this.request_pending === false) {
+            this._send_query();
+        }
+    }
+
+    /**
+     * @TODO move container class ['autocomplete-items'] to options
+     */
+    initSuggestionContainer() {
+        let tmp_container = this.target.nextElementSibling;
+        if (!tmp_container.classList.contains('autocomplete-items')) {
+            // Bad container, should create a new one
+            let good_container = document.createElement('div');
+            good_container.classList.add('autocomplete-items');
+            this.container = good_container;
+            this.target.parentElement.insertBefore(this.container, tmp_container);
+        } else {
+            this.container = tmp_container;
+        }
+    }
+
+    _send_query() {
+        let data = this.data_queue[0];
+        this.request.send(data);
+    }
+
+    on_http_sent() {
+        this.request_pending = true;
+        this.data_queue.shift();
+    }
+
+    on_http_success(status, json, response) {
+        this.clearSuggestions();
+        let template = new SafirTemplate(this.template);
+        template.render(this.container, json);
+        this.request_pending = false;
+
+        this.addItemEventListeners(json.terms);
+
+        // Get last data
+        let data = this.data_queue.pop();
+        if (data !== undefined) {
+            this.data_queue = [data];
+            this._send_query();
+        }
+    }
+
+    on_http_error(status, json, response) {
+
+    }
+
+    addItemEventListeners(terms) {
+        let items = this.container.querySelectorAll('.item');
+        for (let i = 0; i < items.length; ++i) {
+            let item = items[i];
+            let term = terms[i];
+            let event = new Event('select');
+            event.data = term;
+            item.addEventListener('click', () => {
+                item.dispatchEvent(event);
+            });
+            item.addEventListener('select', this.onItemSelect.bind(this));
+        }
+    }
+
+    clearSuggestions() {
+        // Remove previous terms
+        while (this.container.firstChild) {
+            this.container.removeChild(this.container.lastChild);
+        }
+    }
+
+    onItemSelect(event) {
+        this.target.value = event.data.value;
+        this.clearSuggestions();
+    }
+
+    on_network_error(data) {
+
+    }
+}
 // Init library prefix
 let element = document.querySelector('html');
 
@@ -1384,19 +1502,19 @@ if (SafirTemplate.prefix === '') {
 
 // Create helper function
 const safir = {
-    loaded : function(func, objects){
+    loaded: function (func, objects) {
         SafirRegistry.functions.push(func);
-        if(Array.isArray(objects)) {
+        if (Array.isArray(objects)) {
             for (let i in objects) {
                 SafirRegistry.add(objects);
             }
         }
     },
-    attached_data : function(dom) {
+    attached_data: function (dom) {
         let data_registry = new SafirDomDataRegistry();
         return data_registry.get(dom);
     },
-    init : function(parent) {
+    init: function (parent) {
 
         let elements = parent.querySelectorAll('[' + SafirTemplate.prefix + '\\:listener]');
 
@@ -1405,6 +1523,9 @@ const safir = {
             let listener = SafirRegistry.get(attr);
             if (listener !== null) {
                 Reflect.construct(listener, [elt]);
+            } else {
+                console.error('%cListener [' + attr + '] not found. %cPlease add: %cSafirRegistry.add(' + attr + '); %cin your code'
+                    , 'color:red;', 'color:black;', 'color:blue; font-weight:bold;', 'color:black;');
             }
         });
 
@@ -1418,20 +1539,20 @@ const safir = {
              * @type {Attr}
              */
             let is_attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':is');
-            if(is_attr) {
+            if (is_attr) {
                 let _class = SafirRegistry.get(is_attr.value);
-                if(_class !== null) {
+                if (_class !== null) {
                     form = Reflect.construct(_class, [elt]);
                 }
             }
-            if(form === null) {
+            if (form === null) {
                 form = new SafirForm(elt);
             }
 
             let attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':response-handler');
             if (attr) {
                 let handlers = attr.value.split(',');
-                for(let i = 0; i < handlers.length; i++) {
+                for (let i = 0; i < handlers.length; i++) {
                     let handler = SafirRegistry.get(handlers[i]);
                     if (handler !== null) {
                         form.request.registerResponseHandler(handler);
@@ -1514,7 +1635,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 });
 
-setInterval(function(){
+setInterval(function () {
     let data_registry = new SafirDomDataRegistry();
     data_registry.clean();
 }, 5e3);

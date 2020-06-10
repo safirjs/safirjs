@@ -89,7 +89,7 @@ class SafirTemplateNode {
         let data = this.context.get(name);
         if (data === undefined) {
             if (this.parent === undefined) {
-                console.log('this.parent', name);
+                console.error('this.parent', name);
             }
             data = this.parent.get(name);
         }

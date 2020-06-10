@@ -28,14 +28,14 @@
 <script src="/js/safir.js" type="text/javascript"></script>
 <script type="text/javascript">
 
-    class FormListener extends SafirListener {
+    class FormListener extends SafirEventListener {
         on_submit(event) {
             event.preventDefault();
             console.log('event caught', event);
         }
     }
 
-    class InputChangeListener extends SafirListener {
+    class InputChangeListener extends SafirEventListener {
         on_change(event) {
             console.log('on_change caught', event);
         }

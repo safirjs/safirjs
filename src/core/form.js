@@ -17,6 +17,12 @@ class SafirForm extends SafirElement {
     }
 }
 
+class SafirSecureForm extends SafirForm {
+    constructor(selector) {
+        super(selector, SafirSecureHttpRequest);
+    }
+}
+
 class SafirFormListener extends SafirEventListener {
     on_submit(event) {
         event.preventDefault();

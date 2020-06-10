@@ -18,19 +18,19 @@ if (SafirTemplate.prefix === '') {
 
 // Create helper function
 const safir = {
-    loaded : function(func, objects){
+    loaded: function (func, objects) {
         SafirRegistry.functions.push(func);
-        if(Array.isArray(objects)) {
+        if (Array.isArray(objects)) {
             for (let i in objects) {
                 SafirRegistry.add(objects);
             }
         }
     },
-    attached_data : function(dom) {
+    attached_data: function (dom) {
         let data_registry = new SafirDomDataRegistry();
         return data_registry.get(dom);
     },
-    init : function(parent) {
+    init: function (parent) {
 
         let elements = parent.querySelectorAll('[' + SafirTemplate.prefix + '\\:listener]');
 
@@ -39,6 +39,9 @@ const safir = {
             let listener = SafirRegistry.get(attr);
             if (listener !== null) {
                 Reflect.construct(listener, [elt]);
+            } else {
+                console.error('%cListener [' + attr + '] not found. %cPlease add: %cSafirRegistry.add(' + attr + '); %cin your code'
+                    , 'color:red;', 'color:black;', 'color:blue; font-weight:bold;', 'color:black;');
             }
         });
 
@@ -52,20 +55,20 @@ const safir = {
              * @type {Attr}
              */
             let is_attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':is');
-            if(is_attr) {
+            if (is_attr) {
                 let _class = SafirRegistry.get(is_attr.value);
-                if(_class !== null) {
+                if (_class !== null) {
                     form = Reflect.construct(_class, [elt]);
                 }
             }
-            if(form === null) {
+            if (form === null) {
                 form = new SafirForm(elt);
             }
 
             let attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':response-handler');
             if (attr) {
                 let handlers = attr.value.split(',');
-                for(let i = 0; i < handlers.length; i++) {
+                for (let i = 0; i < handlers.length; i++) {
                     let handler = SafirRegistry.get(handlers[i]);
                     if (handler !== null) {
                         form.request.registerResponseHandler(handler);
@@ -148,7 +151,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 });
 
-setInterval(function(){
+setInterval(function () {
     let data_registry = new SafirDomDataRegistry();
     data_registry.clean();
 }, 5e3);

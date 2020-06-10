@@ -29,12 +29,10 @@ class SafirTemplate {
      * @param data
      */
     render(target, data) {
-
         if (!(target instanceof Element)) {
             target = document.querySelector(target);
         }
         this.node.render(target, data);
-
         safir.init(target);
     }
 }
