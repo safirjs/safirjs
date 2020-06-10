@@ -62,7 +62,7 @@ const safir = {
                 }
             }
             if (form === null) {
-                form = new SafirForm(elt);
+                form = new SafirSecureForm(elt);
             }
 
             let attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':response-handler');
