@@ -31,8 +31,10 @@ class SafirHtmlTagProcessor extends SafirBaseProcessor {
             // Append custom data
             if(node.append_data) {
                 let _data = node.data();
-                let data_registry = new SafirDomDataRegistry();
-                data_registry.set(dom, _data);
+                Object.defineProperty(dom, 'attached_data', {
+                    value: _data,
+                    writable: false
+                });
             }
 
             parent.appendChild(dom);

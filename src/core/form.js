@@ -8,7 +8,7 @@ class SafirForm extends SafirElement {
         }
 
         this.request.prepare(this.elt.method || 'post', this.elt.action);
-        this.registerListener(SafirFormListener);
+        this.addEventListener(SafirFormListener);
     }
 
     submit() {

@@ -1,4 +1,19 @@
 /**
+ * Generate unique ID
+ * @returns {string}
+ * @constructor
+ */
+function SafirIdGenerator() {
+    if(typeof SafirIdGenerator.counter == 'undefined') {
+        SafirIdGenerator.counter = 0;
+    }
+    let number = SafirIdGenerator.counter++;
+    let prefix = Math.random().toString(36).slice(-5);
+    number = number.toString(36).padStart(5, '0');
+    return SafirTemplate.prefix + '_' + prefix + number;
+}
+
+/**
  * Base class for all Safir objects
  * @class SafirObject
  * @author liva Ramarolahy
@@ -11,6 +26,7 @@ class SafirObject {
      * @constructor
      */
     constructor() {
+        this.id = SafirIdGenerator();
     }
 
     listPrototypes(prefix) {

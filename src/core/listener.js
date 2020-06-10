@@ -10,18 +10,18 @@ class SafirEventListener extends SafirObject {
      *
      * @param selector
      */
-    constructor(selector) {
-        super();
+    apply(selector) {
+        let element = null;
         if (selector instanceof Element) {
-            this.elt = selector;
+            element = selector;
         } else {
-            this.elt = document.querySelector(selector);
+            element = document.querySelector(selector);
         }
-        if (this.elt instanceof Element) {
+        if (element instanceof Element) {
             let prototypes = this.listPrototypes('on_');
             prototypes.forEach(function (p, index) {
                 let name = p.substr(3);
-                this.elt.addEventListener(name, this[p].bind(this));
+                element.addEventListener(name, this[p].bind(this));
             }, this);
         } else {
             console.error('SafirEventListener', 'Element with selector [' + selector + '] not found');

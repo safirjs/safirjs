@@ -405,7 +405,7 @@ class SafirConditionalProcessor extends SafirBaseProcessor {
  *
  */
 class SafirDataAttributeProcessor extends SafirBaseProcessor {
-    static _name = 'data';
+    static _name = 'attach-data';
 
     process(node, target, parent_processor) {
         // Delete this to prevent infinite loop
@@ -447,8 +447,10 @@ class SafirHtmlTagProcessor extends SafirBaseProcessor {
             // Append custom data
             if(node.append_data) {
                 let _data = node.data();
-                let data_registry = new SafirDomDataRegistry();
-                data_registry.set(dom, _data);
+                Object.defineProperty(dom, 'attached_data', {
+                    value: _data,
+                    writable: false
+                });
             }
 
             parent.appendChild(dom);
@@ -669,6 +671,21 @@ class SafirTextEscapedAttributeProcessor extends SafirTextProcessor {
     }
 }
 /**
+ * Generate unique ID
+ * @returns {string}
+ * @constructor
+ */
+function SafirIdGenerator() {
+    if(typeof SafirIdGenerator.counter == 'undefined') {
+        SafirIdGenerator.counter = 0;
+    }
+    let number = SafirIdGenerator.counter++;
+    let prefix = Math.random().toString(36).slice(-5);
+    number = number.toString(36).padStart(5, '0');
+    return SafirTemplate.prefix + '_' + prefix + number;
+}
+
+/**
  * Base class for all Safir objects
  * @class SafirObject
  * @author liva Ramarolahy
@@ -681,6 +698,7 @@ class SafirObject {
      * @constructor
      */
     constructor() {
+        this.id = SafirIdGenerator();
     }
 
     listPrototypes(prefix) {
@@ -726,18 +744,18 @@ class SafirEventListener extends SafirObject {
      *
      * @param selector
      */
-    constructor(selector) {
-        super();
+    apply(selector) {
+        let element = null;
         if (selector instanceof Element) {
-            this.elt = selector;
+            element = selector;
         } else {
-            this.elt = document.querySelector(selector);
+            element = document.querySelector(selector);
         }
-        if (this.elt instanceof Element) {
+        if (element instanceof Element) {
             let prototypes = this.listPrototypes('on_');
             prototypes.forEach(function (p, index) {
                 let name = p.substr(3);
-                this.elt.addEventListener(name, this[p].bind(this));
+                element.addEventListener(name, this[p].bind(this));
             }, this);
         } else {
             console.error('SafirEventListener', 'Element with selector [' + selector + '] not found');
@@ -945,7 +963,7 @@ class SafirHttpRequest {
     }
 }
 
-class SafirSecureJSONRequest extends SafirHttpRequest {
+class SafirSecureHttpRequest extends SafirHttpRequest {
     constructor(options) {
         super(options);
         this.headers['Accept'] = 'application/json';
@@ -960,8 +978,14 @@ class SafirSecureJSONRequest extends SafirHttpRequest {
             } else {
                 this.headers['X-CSRF-TOKEN'] = value;
             }
+        } else {
+            console.warn('[secure-token] META not found in page header');
         }
     }
+}
+
+class SafirHttpHandler {
+
 }
 
 class SafirRequestData {
@@ -1051,41 +1075,75 @@ class SafirRequestData {
  * @author liva Ramarolahy
  */
 
-class SafirEventTarget {
+class SafirEventTarget extends SafirObject {
 
-    constructor(selector, options) {
-        this.options = new SafirOption(options);
+    /**
+     *
+     * @type {Map<string, SafirEventTarget>}
+     */
+    static registry = new Map();
+
+    constructor(selector) {
+        super();
+
+        this.event_listeners = new Map();
 
         if (selector instanceof Element) {
             this.elt = selector;
         } else {
             this.elt = document.querySelector(selector);
         }
-    }
 
-    registerListeners() {
-        /**
-         * Register listeners from options
-         */
-        let _options = this.options.getOptions();
-
-        if (this.elt) {
-            if (_options.hasOwnProperty('listeners')) {
-                for (const i in _options.listeners) {
-                    this.registerListener(_options.listeners[i]);
-                }
+        if (this.elt instanceof Element) {
+            this.setupId();
+            if (SafirEventTarget.registry.has(this.elt.id)) {
+                return SafirEventTarget.registry.get(this.elt.id);
+            } else {
+                SafirEventTarget.registry.set(this.elt.id, this);
             }
+        } else {
+            console.error('SafirEventTarget', 'Element with selector [' + selector + '] not found');
         }
     }
 
-    // @TODO allow
-    registerListener(listener) {
+    /**
+     * Generate a new ID if missing
+     */
+    setupId() {
+        if (this.elt.hasAttribute('id')) {
+            let elt_id = this.elt.getAttribute('id');
+            if (elt_id.trim() !== '') {
+                this.id = elt_id;
+            } else {
+                this.elt.setAttribute('id', this.id);
+            }
+        } else {
+            this.elt.setAttribute('id', this.id);
+        }
+    }
+
+    /**
+     * Add an event listener to the current target. This method ensure that each type of listener is added only once
+     * by maintaining the list of listeners in the instance.
+     * @param listener
+     */
+    addEventListener(listener) {
         try {
-            let instance = Reflect.construct(listener, [this.elt]);
-            instance.target = this;
+            listener = Reflect.construct(listener, [this.elt]);
         } catch (e) {
             console.error(e);
-            console.error('Listener MUST be a constructable');
+        }
+
+        if (listener instanceof SafirEventListener) {
+            let constructor = listener.constructor.name;
+            if (!this.event_listeners.has(constructor)) {
+                listener.target = this.elt;
+                listener.apply(this.elt);
+                this.event_listeners.set(constructor, listener);
+            }
+        } else {
+            console.error(listener.constructor.name + ' IS NOT an instance of SafirEventListener');
+            console.log(listener);
         }
     }
 }
@@ -1098,34 +1156,7 @@ class SafirEventTarget {
 class SafirElement extends SafirEventTarget {
     constructor(selector, options) {
         super(selector, options);
-
-        if (this.elt) {
-            this._setupViewID();
-            this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
-
-            this.registerListeners();
-        } else {
-            console.error('Element not found', selector);
-        }
-    }
-
-    /**
-     *
-     * @private
-     */
-    _setupViewID() {
-        if (this.elt.hasAttribute('id')) {
-            let elt_id = this.elt.getAttribute('id');
-            if (elt_id.trim() !== '') {
-                this.id = elt_id;
-            } else {
-                this.id = SafirIdGenerator();
-                this.elt.setAttribute('id', this.id);
-            }
-        } else {
-            this.id = SafirIdGenerator();
-            this.elt.setAttribute('id', this.id);
-        }
+        this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
     }
 }
 
@@ -1156,7 +1187,7 @@ class SafirForm extends SafirElement {
         }
 
         this.request.prepare(this.elt.method || 'post', this.elt.action);
-        this.registerListener(SafirFormListener);
+        this.addEventListener(SafirFormListener);
     }
 
     submit() {
@@ -1167,7 +1198,7 @@ class SafirForm extends SafirElement {
 
 class SafirSecureForm extends SafirForm {
     constructor(selector) {
-        super(selector, SafirSecureJSONRequest);
+        super(selector, SafirSecureHttpRequest);
     }
 }
 
@@ -1188,85 +1219,75 @@ class SafirRedirectHandler {
         }
     }
 }
-/**
- *
- * @returns {string}
- * @constructor
- */
-function SafirIdGenerator() {
-    if( typeof SafirIdGenerator.counter == 'undefined' ) {
-        SafirIdGenerator.counter = 0;
-    }
-    return '_' + SafirTemplate.prefix + '_generated_id_' + SafirIdGenerator.counter++;
-}
-
-/**
- * Storage for HTMLElement custom data
- */
-class SafirDomDataRegistry {
-
-    /**
-     *
-     * @returns {SafirDomDataRegistry}
-     */
-    constructor() {
-        if (!!SafirDomDataRegistry.instance) {
-            return SafirDomDataRegistry.instance;
-        }
-
-        SafirDomDataRegistry.instance = this;
-        this.registry = new Map();
-
-        return this;
-    }
-
-    /**
-     * Get a custom data associated with dom param if any
-     * @param dom HTMLElement
-     * @returns {null|Object}
-     */
-    get(dom) {
-        let id = dom.getAttribute('id');
-        if(id !== null) {
-            return this.registry.get(id);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Set associate a custom data to an HTMLElement.
-     * This function will set an ID to the if it doesn't have one yet.
-     * @param dom HTMLElement
-     * @param value
-     */
-    set(dom, value) {
-        let id = dom.getAttribute('id');
-        if(id == null) {
-            id = SafirIdGenerator();
-            dom.setAttribute('id', id);
-        }
-        this.registry.set(id, value);
-    }
-
-    /**
-     * Preserve browser memory by deleting orphaned data
-     */
-    clean() {
-        let orphan_data = [];
-        for(let [name, _] of this.registry) {
-            let elt = document.getElementById(name);
-            if(elt === null) {
-                orphan_data.push(name);
-            }
-        }
-        if(orphan_data.length > 0) {
-            for(let i = 0; i < orphan_data.length; ++i) {
-                this.registry.delete(orphan_data[i]);
-            }
-        }
-    }
-}
+//
+//
+// /**
+//  * Storage for HTMLElement custom data
+//  */
+// class SafirDomDataRegistry {
+//
+//     /**
+//      *
+//      * @returns {SafirDomDataRegistry}
+//      */
+//     constructor() {
+//         if (!!SafirDomDataRegistry.instance) {
+//             return SafirDomDataRegistry.instance;
+//         }
+//
+//         SafirDomDataRegistry.instance = this;
+//         this.registry = new Map();
+//
+//         return this;
+//     }
+//
+//     /**
+//      * Get a custom data associated with dom param if any
+//      * @param dom HTMLElement
+//      * @returns {null|Object}
+//      */
+//     get(dom) {
+//         let id = dom.getAttribute('id');
+//         if(id !== null) {
+//             return this.registry.get(id);
+//         } else {
+//             return null;
+//         }
+//     }
+//
+//     /**
+//      * Set associate a custom data to an HTMLElement.
+//      * This function will set an ID to the if it doesn't have one yet.
+//      * @param dom HTMLElement
+//      * @param value
+//      */
+//     set(dom, value) {
+//         let id = dom.getAttribute('id');
+//         if(id == null) {
+//             id = SafirIdGenerator();
+//             dom.setAttribute('id', id);
+//         }
+//         this.registry.set(id, value);
+//     }
+//
+//     /**
+//      * Preserve browser memory by deleting orphaned data
+//      */
+//     clean() {
+//         let orphan_data = [];
+//         for(let [name, _] of this.registry) {
+//             let elt = document.getElementById(name);
+//             if(elt === null) {
+//                 orphan_data.push(name);
+//             }
+//         }
+//         if(orphan_data.length > 0) {
+//             for(let i = 0; i < orphan_data.length; ++i) {
+//                 this.registry.delete(orphan_data[i]);
+//             }
+//         }
+//     }
+// }
 class BootstrapEditableFormHelper extends SafirElement {
     constructor(selector, options) {
         super(selector, options);
@@ -1510,19 +1531,23 @@ const safir = {
             }
         }
     },
-    attached_data: function (dom) {
-        let data_registry = new SafirDomDataRegistry();
-        return data_registry.get(dom);
-    },
+    // attached_data: function (dom) {
+    //     let data_registry = new SafirDomDataRegistry();
+    //     return data_registry.get(dom);
+    // },
     init: function (parent) {
 
         let elements = parent.querySelectorAll('[' + SafirTemplate.prefix + '\\:listener]');
 
         elements.forEach(function (elt) {
-            let attr = elt.getAttribute(SafirTemplate.prefix + ':listener');
+            let attr_name = SafirTemplate.prefix + ':listener';
+            let attr = elt.getAttribute(attr_name);
             let listener = SafirRegistry.get(attr);
             if (listener !== null) {
-                Reflect.construct(listener, [elt]);
+                let target = new SafirEventTarget(elt);
+                target.addEventListener(listener);
+                elt.removeAttribute(attr_name);
+
             } else {
                 console.error('%cListener [' + attr + '] not found. %cPlease add: %cSafirRegistry.add(' + attr + '); %cin your code'
                     , 'color:red;', 'color:black;', 'color:blue; font-weight:bold;', 'color:black;');
@@ -1546,7 +1571,7 @@ const safir = {
                 }
             }
             if (form === null) {
-                form = new SafirForm(elt);
+                form = new SafirSecureForm(elt);
             }
 
             let attr = elt.attributes.getNamedItem(SafirTemplate.prefix + ':response-handler');
@@ -1566,20 +1591,37 @@ const safir = {
         });
 
         // Init forms
+        // @TODO Third-party initialization should be moved out of this script.
 
         let editable = parent.querySelectorAll('.form-editable');
         editable.forEach(function (element, index) {
             Reflect.construct(BootstrapEditableFormHelper, [element]);
         });
+    },
+    register() {
+        for (let i = 0; i < arguments.length; i++) {
+            let arg = arguments[i];
+            if(arg instanceof SafirHttpHandler) {
+                console.log(arg);
+            } else if (arg instanceof SafirEventListener) {
+                console.log(arg);
+            }
+        }
     }
 };
 
 
 class SafirRegistry {
 
+    static event_targets = new Map();
+
     static registry = new Map();
 
     static functions = new Array();
+
+    static listeners = new Map();
+
+    static handlers = new Map();
 
     static add() {
         for (let i = 0; i < arguments.length; i++) {
@@ -1624,8 +1666,6 @@ window.addEventListener('DOMContentLoaded', (event) => {
         , SafirLoopTagProcessor // loop
     );
 
-    SafirRegistry.add(LaravelForm);
-
     for (let i in SafirRegistry.functions) {
         SafirRegistry.functions[i].call();
     }
@@ -1635,7 +1675,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 
 });
 
-setInterval(function () {
-    let data_registry = new SafirDomDataRegistry();
-    data_registry.clean();
-}, 5e3);
+// setInterval(function () {
+//     let data_registry = new SafirDomDataRegistry();
+//     data_registry.clean();
+// }, 5e3);

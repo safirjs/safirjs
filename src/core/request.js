@@ -153,9 +153,13 @@ class SafirSecureHttpRequest extends SafirHttpRequest {
                 this.headers['X-CSRF-TOKEN'] = value;
             }
         } else {
-            console.error('<meta name="secure-token" content="XXX"> not found in page header');
+            console.warn('[secure-token] META not found in page header');
         }
     }
+}
+
+class SafirHttpHandler {
+
 }
 
 class SafirRequestData {

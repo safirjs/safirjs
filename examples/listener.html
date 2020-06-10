@@ -6,17 +6,17 @@
 </head>
 <body>
 
-<form id="form-1" action="/index.html" method="post">
+<form action="/index.html" method="post">
     <p>
         <input type="text" name="task"/>
         <button type="submit">add</button>
     </p>
 </form>
 
-<form id="form-2" action="/index.html" method="post" sf:listener="FormListener">
+<form action="/index.html" method="post" sf:listener="FormListener">
     <p>
         <input type="text" sf:listener="InputChangeListener" name="task"/>
-        <button type="submit">add</button>
+        <button type="submit">on change</button>
     </p>
 </form>
 

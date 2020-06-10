@@ -19,26 +19,26 @@ if (SafirTemplate.prefix === '') {
 // Create helper function
 const safir = {
     loaded: function (func, objects) {
-        SafirRegistry.functions.push(func);
+        SafirRegistry.initializers.push(func);
         if (Array.isArray(objects)) {
             for (let i in objects) {
                 SafirRegistry.add(objects);
             }
         }
     },
-    attached_data: function (dom) {
-        let data_registry = new SafirDomDataRegistry();
-        return data_registry.get(dom);
-    },
     init: function (parent) {
 
         let elements = parent.querySelectorAll('[' + SafirTemplate.prefix + '\\:listener]');
 
         elements.forEach(function (elt) {
-            let attr = elt.getAttribute(SafirTemplate.prefix + ':listener');
+            let attr_name = SafirTemplate.prefix + ':listener';
+            let attr = elt.getAttribute(attr_name);
             let listener = SafirRegistry.get(attr);
             if (listener !== null) {
-                Reflect.construct(listener, [elt]);
+                let target = new SafirEventTarget(elt);
+                target.addEventListener(listener);
+                elt.removeAttribute(attr_name);
+
             } else {
                 console.error('%cListener [' + attr + '] not found. %cPlease add: %cSafirRegistry.add(' + attr + '); %cin your code'
                     , 'color:red;', 'color:black;', 'color:blue; font-weight:bold;', 'color:black;');
@@ -82,20 +82,35 @@ const safir = {
         });
 
         // Init forms
+        // @TODO Third-party initialization should be moved out of this script.
 
         let editable = parent.querySelectorAll('.form-editable');
         editable.forEach(function (element, index) {
             Reflect.construct(BootstrapEditableFormHelper, [element]);
         });
+    },
+    register() {
+        for (let i = 0; i < arguments.length; i++) {
+            let arg = arguments[i];
+            if(arg instanceof SafirHttpHandler) {
+                console.log(arg);
+            } else if (arg instanceof SafirEventListener) {
+                console.log(arg);
+            }
+        }
     }
 };
 
-
+/**
+ * @TODO find a way to remove this class
+ */
 class SafirRegistry {
 
     static registry = new Map();
 
-    static functions = new Array();
+    static initializers = new Array();
+
+    static listeners = new Map();
 
     static add() {
         for (let i = 0; i < arguments.length; i++) {
@@ -140,18 +155,11 @@ window.addEventListener('DOMContentLoaded', (event) => {
         , SafirLoopTagProcessor // loop
     );
 
-    SafirRegistry.add(LaravelForm);
-
-    for (let i in SafirRegistry.functions) {
-        SafirRegistry.functions[i].call();
+    for (let i in SafirRegistry.initializers) {
+        SafirRegistry.initializers[i].call();
     }
 
     // Init all listeners
     safir.init(document);
 
 });
-
-setInterval(function () {
-    let data_registry = new SafirDomDataRegistry();
-    data_registry.clean();
-}, 5e3);
